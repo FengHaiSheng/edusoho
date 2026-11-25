@@ -41,6 +41,9 @@ class Show {
     this.subtitles = container.data('subtitles');
     this.autoplay = container.data('autoplay');
     this.remeberLastPos = container.data('remeberLastPos');
+    this.playerVersion = container.data('playerVersion');
+    this.resNo = container.data('resNo');
+    this.token = container.data('token');
     let $iframe = $(window.parent.document.getElementById('task-content-iframe'));
     if ($iframe.length > 0 && parseInt($iframe.data('lastLearnTime')) != parseInt(DurationStorage.get(this.userId, this.fileId))) {
       DurationStorage.del(this.userId, this.fileId);
@@ -104,7 +107,10 @@ class Show {
         customPos: customPos,
         mediaLength: this.fileLength,
         strictMode: this.strictMode,
-        remeberLastPos: this.remeberLastPos
+        remeberLastPos: this.remeberLastPos,
+        playerVersion: this.playerVersion,
+        resNo: this.resNo,
+        token: this.token
       }
     );
   }

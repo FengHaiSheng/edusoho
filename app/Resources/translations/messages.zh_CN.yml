@@ -6491,6 +6491,10 @@ admin.edu_cloud.edu_video.high: 高品质
 admin.edu_cloud.edu_video.play_speed: 倍速播放：
 admin.edu_cloud.edu_video.play_speed_tips: 开启后，云视频任务及音频任务支持倍速播放。
 admin.edu_cloud.edu_video.not_support_play_speed_tips: 目前系统自动生成的直播回放视频、本地视频、第三方视频（腾讯、优酷等）不支持倍速播放。
+admin.edu_cloud.edu_video.player_version: 播放器版本：
+admin.edu_cloud.edu_video.player_version_v1: 旧版播放器
+admin.edu_cloud.edu_video.player_version_v2: 新版播放器
+admin.edu_cloud.edu_video.player_version_tips: 切换后，课程学习页的云视频将使用对应版本的播放器。默认使用旧版播放器，新版播放器需云平台支持新版播放协议。
 admin.edu_cloud.edu_video.auto_play: 云视频自动播放
 admin.edu_cloud.edu_video.video_header: 云视频片头：
 admin.edu_cloud.edu_video.video_header_edit_btn: 编辑

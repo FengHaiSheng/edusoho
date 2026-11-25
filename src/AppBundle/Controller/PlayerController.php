@@ -34,13 +34,17 @@ class PlayerController extends BaseController
         $agentInWhiteList = $this->getPlayerService()->agentInWhiteList($request->headers->get('user-agent'));
 
         $isEncryptionPlus = false;
+        $playerVersion = 'v1';
 
         //音频无论是否开启教育云都会去使用cloudsdk
         if ('audio' == $file['type']) {
             $cloudSdk = 'audio'; //webExtension->getCloudSdkUrl
         }
         if ('video' == $file['type'] && 'cloud' == $file['storage']) {
-            $cloudSdk = 'video'; //webExtension->getCloudSdkUrl
+            $storageSetting = $this->getSettingService()->get('storage', array());
+            $playerVersion = isset($storageSetting['player_version']) && 'v2' == $storageSetting['player_version'] ? 'v2' : 'v1';
+            $cloudSdk = 'v2' === $playerVersion ? 'resource_player' : 'video'; //webExtension->getCloudSdkUrl
+
             $videoPlayer = $this->getPlayerService()->getVideoFilePlayer($file, $agentInWhiteList, $context, $ssl);
             $isEncryptionPlus = $videoPlayer['isEncryptionPlus'];
             $context = $videoPlayer['context'];
@@ -48,7 +52,29 @@ class PlayerController extends BaseController
                 $mp4Url = $videoPlayer['mp4Url'];
             }
         }
-        $url = isset($mp4Url) ? $mp4Url : $this->getPlayUrl($file, $context, $ssl);
+
+        if ('v2' === $playerVersion) {
+            //手机浏览器等使用 mp4 播放的场景保持旧版播放器
+            if (empty($mp4Url) && !empty($file['globalId'])) {
+                $v2Player = $this->getMaterialLibService()->playerV2($file['globalId']);
+                if (!empty($v2Player['token'])) {
+                    $resNo = $v2Player['resNo'];
+                    $playToken = $v2Player['token'];
+                    $url = '';
+                } else {
+                    //云平台未配置密钥时回退旧版播放器，避免无法播放
+                    $playerVersion = 'v1';
+                    $cloudSdk = 'video';
+                }
+            } else {
+                $playerVersion = 'v1';
+                $cloudSdk = 'video';
+            }
+        }
+
+        if (!isset($url)) {
+            $url = isset($mp4Url) ? $mp4Url : $this->getPlayUrl($file, $context, $ssl);
+        }
 
         $params = array(
             'file' => $file,
@@ -59,6 +85,9 @@ class PlayerController extends BaseController
             'isEncryptionPlus' => $isEncryptionPlus,
             'cloudSdk' => isset($cloudSdk) ? $cloudSdk : null,
             'remeberLastPos' => $remeberLastPos,
+            'playerVersion' => $playerVersion,
+            'resNo' => isset($resNo) ? $resNo : '',
+            'token' => isset($playToken) ? $playToken : '',
         );
 
         if ($isPart) {

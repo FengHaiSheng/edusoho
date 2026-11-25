@@ -189,6 +189,55 @@ class CloudFileServiceImpl extends BaseService implements CloudFileService
         return $result;
     }
 
+    public function playerV2($globalId)
+    {
+        return array(
+            'resNo' => $globalId,
+            'token' => $this->makeV2PlayToken($globalId),
+        );
+    }
+
+    /**
+     * js-sdk-v2 播放器只接受 JWT 形式的播放 token（与旧 sdk 的 token 不通用）。
+     */
+    protected function makeV2PlayToken($resNo, $lifetime = 600)
+    {
+        $storage = $this->getSettingService()->get('storage', array());
+
+        if (empty($storage['cloud_secret_key'])) {
+            return '';
+        }
+
+        $user = $this->getCurrentUser();
+
+        $payload = array(
+            'no' => $resNo,
+            'jti' => substr(md5(uniqid('', true)), 0, 16),
+            'exp' => time() + $lifetime,
+            'uid' => (string) $user->getId(),
+            'uname' => isset($user->nickname) ? (string) $user->nickname : '',
+        );
+
+        return $this->encodeJwt($payload, $storage['cloud_secret_key']);
+    }
+
+    protected function encodeJwt(array $payload, $secretKey)
+    {
+        $base64UrlEncode = function ($data) {
+            return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
+        };
+
+        $segments = array(
+            $base64UrlEncode(json_encode(array('typ' => 'JWT', 'alg' => 'HS256'))),
+            $base64UrlEncode(json_encode($payload)),
+        );
+
+        $signingInput = implode('.', $segments);
+        $segments[] = $base64UrlEncode(hash_hmac('sha256', $signingInput, $secretKey, true));
+
+        return implode('.', $segments);
+    }
+
     public function download($globalId)
     {
         return $this->getCloudFileImplementor()->download($globalId);

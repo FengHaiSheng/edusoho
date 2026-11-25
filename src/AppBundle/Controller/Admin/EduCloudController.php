@@ -231,6 +231,7 @@ class EduCloudController extends BaseController
             'video_fingerprint_time' => 0.5,
             'video_header' => null,
             'video_auto_play' => 'true',
+            'player_version' => 'v1',
         );
 
         if ('POST' == $request->getMethod()) {

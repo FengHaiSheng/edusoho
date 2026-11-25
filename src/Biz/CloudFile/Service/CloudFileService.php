@@ -10,6 +10,8 @@ interface CloudFileService
 
     public function player($globalId, $ssl = false);
 
+    public function playerV2($globalId);
+
     public function edit($globalId, $fields);
 
     public function delete($globalId);

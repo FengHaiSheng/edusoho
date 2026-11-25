@@ -5,6 +5,9 @@ class BalloonCloudVideoPlayer extends Emitter {
     super();
     this.options = options;
     this.player = {};
+    this.playerVersion = 'v2' === options.playerVersion ? 'v2' : 'v1';
+    this.currentTime = 0;
+    this.playing = false;
     this.setup();
   }
 
@@ -15,8 +18,8 @@ class BalloonCloudVideoPlayer extends Emitter {
 
     let extConfig = {};
 
-    //字幕
-    if (self.options.textTrack.length) {
+    //字幕（新版播放器根据 resNo 自动获取字幕，无需透传）
+    if ('v1' === this.playerVersion && self.options.textTrack && self.options.textTrack.length) {
       extConfig = Object.assign(extConfig, {
         textTrack: self.options.textTrack
       });
@@ -70,40 +73,68 @@ class BalloonCloudVideoPlayer extends Emitter {
       });
     }
 
-    if (self.options.statsInfo) {
-      var statsInfo = self.options.statsInfo;
-      extConfig = Object.assign(extConfig, {
-        statsInfo: {
-          accesskey: statsInfo.accesskey,
-          globalId: statsInfo.globalId,
-          userId: statsInfo.userId,
-          userName: statsInfo.userName
-        }
-      });
-    }
-
-    const remeberLastPos = (self.options.customPos && self.options.remeberLastPos) ? true : false;
-
-
     const lang = (document.documentElement.lang == 'zh_CN') ? 'zh-CN' : document.documentElement.lang;
     self.options.customPos = self.options.customPos.toString();
-    extConfig = Object.assign(extConfig, {
-      id: $(self.options.element).attr('id'),
-      sdkBaseUri: app.cloudSdkBaseUri,
-      disableDataUpload: app.cloudDisableLogReport,
-      disableSentry: app.cloudDisableLogReport,
-      disableControlBar: self.options.disableControlBar,
-      disableProgressBar: self.options.disableProgressBar,
-      playlist: self.options.url,
-      remeberLastPos: remeberLastPos,
-      customPos: self.options.customPos,
-      videoHeaderLength: self.options.videoHeaderLength,
-      autoplay: self.options.autoplay,
-      strictMode: !self.options.strictMode,
-      language: lang
-    });
 
-    var player = new VideoPlayerSDK(extConfig);
+    var player;
+
+    if ('v2' === this.playerVersion) {
+      extConfig = Object.assign(extConfig, {
+        id: $(self.options.element).attr('id'),
+        resNo: self.options.resNo,
+        token: self.options.token,
+        user: self.transToUser(self.options.statsInfo),
+        disableDataUpload: app.cloudDisableLogReport,
+        disableSentry: app.cloudDisableLogReport,
+        disableControlBar: self.options.disableControlBar,
+        disableProgressBar: self.options.disableProgressBar,
+        disableFullscreen: self.options.disableFullscreen,
+        disableSeek: self.options.disableProgressBar ? 'forward' : 'none',
+        rememberLastPos: (self.options.customPos && self.options.remeberLastPos) ? true : false,
+        initPos: self.options.customPos,
+        autoplay: self.options.autoplay,
+        strictMode: !self.options.strictMode,
+        language: lang
+      });
+
+      if (app.cloudSdkBaseUri) {
+        extConfig.sdkBaseUri = app.cloudSdkBaseUri;
+      }
+
+      player = new QiQiuYun.Player(extConfig);
+    } else {
+      if (self.options.statsInfo) {
+        var statsInfo = self.options.statsInfo;
+        extConfig = Object.assign(extConfig, {
+          statsInfo: {
+            accesskey: statsInfo.accesskey,
+            globalId: statsInfo.globalId,
+            userId: statsInfo.userId,
+            userName: statsInfo.userName
+          }
+        });
+      }
+
+      const remeberLastPos = (self.options.customPos && self.options.remeberLastPos) ? true : false;
+
+      extConfig = Object.assign(extConfig, {
+        id: $(self.options.element).attr('id'),
+        sdkBaseUri: app.cloudSdkBaseUri,
+        disableDataUpload: app.cloudDisableLogReport,
+        disableSentry: app.cloudDisableLogReport,
+        disableControlBar: self.options.disableControlBar,
+        disableProgressBar: self.options.disableProgressBar,
+        playlist: self.options.url,
+        remeberLastPos: remeberLastPos,
+        customPos: self.options.customPos,
+        videoHeaderLength: self.options.videoHeaderLength,
+        autoplay: self.options.autoplay,
+        strictMode: !self.options.strictMode,
+        language: lang
+      });
+
+      player = new VideoPlayerSDK(extConfig);
+    }
 
     player.on('ready', function(e) {
       self.emit('ready', e);
@@ -111,6 +142,7 @@ class BalloonCloudVideoPlayer extends Emitter {
 
     player.on('timeupdate', function(e) {
       //    player.__events get all the event;
+      self.currentTime = e && e.currentTime ? e.currentTime : self.currentTime;
       self.emit('timechange', e);
     });
 
@@ -119,28 +151,52 @@ class BalloonCloudVideoPlayer extends Emitter {
     });
 
     player.on('unableConfirm', function (e) {
-      $('.js-back-link', parent.document)[0].click();
+      var backLink = $('.js-back-link', parent.document)[0];
+      if (backLink) {
+        backLink.click();
+      }
     });
 
     player.on('ended', function(e) {
+      self.playing = false;
       self.emit('ended', e);
     });
 
     player.on('playing', function(e) {
+      self.playing = true;
       self.emit('playing', e);
     });
 
     player.on('paused', function(e) {
+      self.playing = false;
       self.emit('paused', e);
     });
 
     player.on('exam.answered', function(e) {
-      var data = e.data;
+      var data = (e && e.data) ? e.data : e;
       data['type'] = self.convertQuestionType(data.type, 'cloud');
       self.emit('answered', data);
     });
 
     this.player = player;
+  }
+
+  transToUser(statsInfo) {
+    var user = {};
+    if (!statsInfo) {
+      return user;
+    }
+
+    user = {
+      accesskey: statsInfo.accesskey,
+      globalId: statsInfo.globalId,
+      id: statsInfo.userId,
+      name: statsInfo.userName,
+      userId: statsInfo.userId,
+      userName: statsInfo.userName
+    };
+
+    return user;
   }
 
   play() {
@@ -152,7 +208,8 @@ class BalloonCloudVideoPlayer extends Emitter {
   }
 
   getCurrentTime() {
-    return this.player.getCurrentTime();
+    var time = (this.player && 'function' == typeof this.player.getCurrentTime) ? this.player.getCurrentTime() : this.currentTime;
+    return time || 0;
   }
 
   setCurrentTime(time) {
@@ -166,6 +223,9 @@ class BalloonCloudVideoPlayer extends Emitter {
   }
 
   isPlaying() {
+    if ('v2' === this.playerVersion) {
+      return !!this.playing;
+    }
     if (this.player && this.player.paused) {
       return !this.player.paused();
     }

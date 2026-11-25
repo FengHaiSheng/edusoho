@@ -1794,6 +1794,7 @@ class WebExtension extends \Twig_Extension
             'old_document' => 'js-sdk/document-player/v7/viewer.html',
             'faq' => 'js-sdk/faq/sdk-v1.js',
             'audio' => 'js-sdk/audio-player/sdk-v1.js',
+            'resource_player' => 'js-sdk-v2/sdk-v1.js',
         );
 
         if (isset($paths[$type])) {
